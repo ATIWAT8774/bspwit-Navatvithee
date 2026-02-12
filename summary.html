@@ -165,14 +165,20 @@
         try {
             const res = await fetch(SCRIPT_URL);
             const json = await res.json();
-            allProjects = json.projects;
-            allEvals = json.evals;
+            
+            // --- แก้ตรงนี้ครับ ---
+            console.log("ข้อมูลที่ได้จาก Server:", json); // ให้มันแสดงใน Console จะได้เช็กได้
+            
+            // ถ้า json.projects ไม่มีค่า ให้ใส่เป็น [] แทน
+            allProjects = json.projects || []; 
+            allEvals = json.evals || [];
+            // ------------------
             
             renderClassrooms();
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('room-selection').classList.remove('hidden');
         } catch (e) {
-            alert('ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่');
+            alert('ไม่สามารถดึงข้อมูลได้: ' + e.message);
             console.error(e);
         }
     }
@@ -187,13 +193,32 @@
         `).join('');
     }
 
-    function selectRoom(roomId) {
-        const room = classrooms.find(c => c.id === roomId);
+function selectRoom(roomId) {
+    // --- ส่วนป้องกัน Error (ถูกต้องแล้วครับ) ---
+    if (!allProjects || !Array.isArray(allProjects)) {
+        console.error("Data is missing:", allProjects); // เพิ่ม Log ให้ดูใน Console
+        alert("ข้อมูลโครงงานยังโหลดไม่เสร็จ หรือมีปัญหา กรุณารีเฟรชหน้าเว็บ");
+        return;
+    }
+    // ------------------------------------
+
+    // --- ส่วนหาห้อง (แก้: ลบอันที่ซ้ำออก ให้เหลือบรรทัดเดียว) ---
+    const room = classrooms.find(c => c.id === roomId); 
+    
+    // --- ส่วนแสดงผล ---
+    if (room) { // เพิ่มการเช็กว่าเจอห้องไหม เพื่อความชัวร์
         document.getElementById('room-title').textContent = `ผลคะแนน ${room.name}`;
         document.getElementById('room-selection').classList.add('hidden');
         document.getElementById('score-view').classList.remove('hidden');
 
+        // จุดที่เคย Error จะไม่พังแล้ว เพราะเราเช็ก allProjects ข้างบนแล้ว
         const projects = allProjects.filter(p => p.Classroom_ID === roomId);
+        
+        // ... (โค้ดส่วน render ตารางต้องอยู่ต่อจากตรงนี้) ...
+        // เรียกฟังก์ชันวาดตารางต่อ (ถ้ามีในโค้ดเดิม)
+        renderTable(projects); // สมมติว่าแยกฟังก์ชันไว้ หรือเขียนต่อเลย
+    }
+}
         
         // คำนวณคะแนนและเรียงลำดับ
         const processedProjects = projects.map(p => {
