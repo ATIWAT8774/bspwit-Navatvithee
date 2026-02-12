@@ -10,10 +10,8 @@
     body { font-family: 'Sarabun', sans-serif; }
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    /* ป้องกันตารางล้นในมือถือ */
     .table-container { overflow-x: auto; }
     th, td { white-space: nowrap; } 
-    /* ให้ชื่อกลุ่มกับชื่อโครงงานขึ้นบรรทัดใหม่ได้ */
     .wrap-text { white-space: normal; min-width: 200px; }
   </style>
 </head>
@@ -62,7 +60,7 @@
                         <tr class="bg-emerald-600 text-white text-sm">
                             <th class="p-4 font-bold border-r border-emerald-500">กลุ่มที่</th>
                             <th class="p-4 font-bold border-r border-emerald-500 w-1/3">ชื่อโครงงาน</th>
-                            <th class="p-4 font-bold text-center border-r border-emerald-500">จำนวน<br>คนประเมิน</th>
+                            <th class="p-4 font-bold text-center border-r border-emerald-500">ผู้ประเมิน</th>
                             <th class="p-4 font-bold text-center border-r border-emerald-500 text-yellow-300 text-lg">คะแนนเฉลี่ย<br>(เต็ม 60)</th>
                             <th class="p-4 font-bold text-center">เพิ่มเติม</th>
                         </tr>
@@ -129,11 +127,10 @@
                     <thead class="bg-slate-100 text-slate-600 font-bold">
                         <tr>
                             <th class="p-3">ชื่อผู้ประเมิน</th>
-                            <th class="p-3 text-right">คะแนนที่ให้</th>
+                            <th class="p-3 text-right">คะแนนรวมที่ให้</th>
                         </tr>
                     </thead>
-                    <tbody id="m-evaluator-list" class="divide-y divide-slate-100">
-                        </tbody>
+                    <tbody id="m-evaluator-list" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
 
@@ -147,13 +144,14 @@
   </footer>
 
   <script>
-    // *** เปลี่ยน URL เป็นของ Script คุณ ***
+    // ******************************************************
+    // แก้ URL บรรทัดนี้ให้เป็น Link ที่ได้จากการ Deploy ใหม่ล่าสุด
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwmrUBdFqnYJlpQVLZWyTecvDJlg9WqOHvsJKDigg2y4_TluxCa472P8Mkcdj4eUF3d/exec";
+    // ******************************************************
     
     let allProjects = [];
     let allEvals = [];
     
-    // ข้อมูลห้องเรียน
     const classrooms = [
       { id: 'room-6-1', name: 'ม.6/1' }, { id: 'room-6-2', name: 'ม.6/2' }, { id: 'room-6-3', name: 'ม.6/3' },
       { id: 'room-6-4', name: 'ม.6/4' }, { id: 'room-6-5', name: 'ม.6/5' }, { id: 'room-6-6', name: 'ม.6/6' },
@@ -166,18 +164,16 @@
             const res = await fetch(SCRIPT_URL);
             const json = await res.json();
             
-            // --- แก้ตรงนี้ครับ ---
-            console.log("ข้อมูลที่ได้จาก Server:", json); // ให้มันแสดงใน Console จะได้เช็กได้
-            
-            // ถ้า json.projects ไม่มีค่า ให้ใส่เป็น [] แทน
-            allProjects = json.projects || []; 
+            console.log("Fetched Data:", json);
+
+            allProjects = json.projects || [];
             allEvals = json.evals || [];
-            // ------------------
             
             renderClassrooms();
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('room-selection').classList.remove('hidden');
         } catch (e) {
+            document.getElementById('loading').classList.add('hidden');
             alert('ไม่สามารถดึงข้อมูลได้: ' + e.message);
             console.error(e);
         }
@@ -193,34 +189,22 @@
         `).join('');
     }
 
-function selectRoom(roomId) {
-    // --- ส่วนป้องกัน Error (ถูกต้องแล้วครับ) ---
-    if (!allProjects || !Array.isArray(allProjects)) {
-        console.error("Data is missing:", allProjects); // เพิ่ม Log ให้ดูใน Console
-        alert("ข้อมูลโครงงานยังโหลดไม่เสร็จ หรือมีปัญหา กรุณารีเฟรชหน้าเว็บ");
-        return;
-    }
-    // ------------------------------------
+    function selectRoom(roomId) {
+        if (!allProjects || !Array.isArray(allProjects)) {
+            alert("ข้อมูลโครงงานยังโหลดไม่เสร็จ กรุณารีเฟรชหน้าเว็บ");
+            return;
+        }
 
-    // --- ส่วนหาห้อง (แก้: ลบอันที่ซ้ำออก ให้เหลือบรรทัดเดียว) ---
-    const room = classrooms.find(c => c.id === roomId); 
-    
-    // --- ส่วนแสดงผล ---
-    if (room) { // เพิ่มการเช็กว่าเจอห้องไหม เพื่อความชัวร์
+        const room = classrooms.find(c => c.id === roomId);
+        if (!room) return;
+
         document.getElementById('room-title').textContent = `ผลคะแนน ${room.name}`;
         document.getElementById('room-selection').classList.add('hidden');
         document.getElementById('score-view').classList.remove('hidden');
 
-        // จุดที่เคย Error จะไม่พังแล้ว เพราะเราเช็ก allProjects ข้างบนแล้ว
         const projects = allProjects.filter(p => p.Classroom_ID === roomId);
         
-        // ... (โค้ดส่วน render ตารางต้องอยู่ต่อจากตรงนี้) ...
-        // เรียกฟังก์ชันวาดตารางต่อ (ถ้ามีในโค้ดเดิม)
-        renderTable(projects); // สมมติว่าแยกฟังก์ชันไว้ หรือเขียนต่อเลย
-    }
-}
-        
-        // คำนวณคะแนนและเรียงลำดับ
+        // คำนวณคะแนน
         const processedProjects = projects.map(p => {
             const evals = allEvals.filter(e => e.project_id === p.Project_ID);
             const count = evals.length;
@@ -229,6 +213,9 @@ function selectRoom(roomId) {
             return { ...p, evals, count, avg };
         });
 
+        // เรียงลำดับตามคะแนนมากไปน้อย (ถ้าต้องการ)
+        processedProjects.sort((a, b) => b.avg - a.avg);
+
         const tbody = document.getElementById('score-table-body');
         
         if(processedProjects.length === 0) {
@@ -236,7 +223,7 @@ function selectRoom(roomId) {
             return;
         }
 
-        tbody.innerHTML = processedProjects.map((p, index) => `
+        tbody.innerHTML = processedProjects.map((p) => `
             <tr class="border-b border-slate-100 hover:bg-emerald-50 transition-colors odd:bg-white even:bg-slate-50">
                 <td class="p-4 font-bold text-emerald-600 align-top text-center">กลุ่ม ${p.Group_No}</td>
                 <td class="p-4 align-top wrap-text">
@@ -265,14 +252,12 @@ function selectRoom(roomId) {
         const evals = allEvals.filter(e => e.project_id === projectId);
         const count = evals.length;
 
-        // คำนวณค่าเฉลี่ยรายด้าน
         const sumS1 = evals.reduce((sum, e) => sum + e.score_1, 0);
         const sumS2 = evals.reduce((sum, e) => sum + e.score_2, 0);
         const sumS3 = evals.reduce((sum, e) => sum + e.score_3, 0);
         const sumS4 = evals.reduce((sum, e) => sum + e.score_4, 0);
         const totalSum = evals.reduce((sum, e) => sum + e.total_score, 0);
 
-        // Update UI
         document.getElementById('m-group').textContent = `กลุ่มที่ ${p.Group_No}`;
         document.getElementById('m-title').textContent = p.Title;
         document.getElementById('m-members').textContent = p.Members;
@@ -285,7 +270,6 @@ function selectRoom(roomId) {
         document.getElementById('m-s3').textContent = count > 0 ? (sumS3 / count).toFixed(2) : "0.00";
         document.getElementById('m-s4').textContent = count > 0 ? (sumS4 / count).toFixed(2) : "0.00";
 
-        // รายชื่อผู้ประเมิน
         const list = document.getElementById('m-evaluator-list');
         if (count === 0) {
             list.innerHTML = `<tr><td colspan="2" class="p-4 text-center text-slate-400">ยังไม่มีผู้ประเมิน</td></tr>`;
